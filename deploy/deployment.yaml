@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dinghy-client
+spec:
+  selector:
+    matchLabels:
+      app: dinghy-client
+  template:
+    metadata:
+      labels:
+        app: dinghy-client
+    spec:
+      containers:
+      - name: dinghy-client
+        image: dinghy-client
+        imagePullPolicy: Never
+        resources:
+          limits:
+            memory: "24Mi"
+            cpu: "50m"
+        ports:
+        - containerPort: 80
+        env:
+        - name: PORT
+          value: "80"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dinghy-client
+spec:
+  selector:
+    app: dinghy-client
+  ports:
+  - port: 80
+    targetPort: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: stripdinghyprefix
+  namespace: default
+spec:
+  stripPrefix:
+    prefixes:
+      - /dinghy
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: dinghy-client
+  namespace: default
+spec:
+  entryPoints:
+    - web
+    # - websecure
+  routes: 
+    - kind: Rule
+      match: PathPrefix(`/dinghy`)
+      services:
+        - kind: Service
+          name: dinghy-client
+          namespace: default
+          port: 80
+      middlewares:
+        - name: stripdinghyprefix
+          namespace: default
+  # tls:
+  #   certResolver: default
